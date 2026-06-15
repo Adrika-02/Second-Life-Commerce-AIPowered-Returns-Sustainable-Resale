@@ -6,6 +6,10 @@ services:
     buildCommand: pip install -r requirements.txt
     startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
     envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
       - key: AWS_ACCESS_KEY_ID
         sync: false
       - key: AWS_SECRET_ACCESS_KEY
@@ -14,9 +18,5 @@ services:
         value: us-east-1
       - key: S3_BUCKET_NAME
         sync: false
-      - key: GROQ_API_KEY
-        sync: false
-      - key: DATABASE_URL
-        sync: false
       - key: FRONTEND_URL
-        sync: false
+        value: https://second-life-commerce-ai-powered-ret.vercel.app
