@@ -481,7 +481,7 @@ export default function Orders() {
 
   useEffect(() => {
     axios.get('/api/v1/orders/')
-      .then(r => setOrders(r.data))
+      .then(r => setOrders(Array.isArray(r.data) ? r.data : []))
       .catch(() => {})
       .finally(() => setLoading(false))
   }, [])
