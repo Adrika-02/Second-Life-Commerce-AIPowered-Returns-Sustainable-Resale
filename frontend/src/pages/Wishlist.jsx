@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom'
 import { useWishlist } from '../context/WishlistContext'
 import { useCart } from '../context/CartContext'
 import { useState } from 'react'
+import { mediaUrl } from '../utils/api'
 
 const GRADE_LABEL = { A: 'Like New', B: 'Refurbished', C: 'Fair', Junk: 'For Parts' }
 const GRADE_COLOR = { A: 'text-green-700 bg-green-50 border-green-200', B: 'text-blue-700 bg-blue-50 border-blue-200', C: 'text-yellow-700 bg-yellow-50 border-yellow-200', Junk: 'text-red-700 bg-red-50 border-red-200' }
@@ -27,7 +28,7 @@ function WishlistItem({ listing }) {
       {/* Image */}
       <div className="w-28 h-28 flex-shrink-0 bg-gray-50 border border-amz-border rounded overflow-hidden">
         {listing.image_url ? (
-          <img src={listing.image_url} alt={listing.title} className="w-full h-full object-cover" />
+          <img src={mediaUrl(listing.image_url)} alt={listing.title} className="w-full h-full object-cover" />
         ) : (
           <div className="w-full h-full flex items-center justify-center text-gray-300 text-3xl">📦</div>
         )}

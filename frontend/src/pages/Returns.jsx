@@ -1,6 +1,6 @@
 import { useCallback, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import axios from '../utils/api'
+import axios, { mediaUrl } from '../utils/api'
 import { getProductCategory } from '../utils/productImages'
 
 const GRADE_CONFIG = {
@@ -1371,7 +1371,7 @@ export default function Returns() {
                     <button key={item.id} onClick={() => setSwapPick(selected ? null : item)}
                       className={`w-full flex items-center gap-3 p-3 rounded-xl border-2 text-left transition-all ${selected ? 'border-purple-500 bg-purple-50' : 'border-gray-200 hover:border-purple-300 hover:bg-purple-50/40'}`}>
                       {item.image_url ? (
-                        <img src={item.image_url} alt="" className="w-14 h-14 object-cover rounded-lg flex-shrink-0 border border-gray-200"
+                        <img src={mediaUrl(item.image_url)} alt="" className="w-14 h-14 object-cover rounded-lg flex-shrink-0 border border-gray-200"
                           onError={e => { e.target.style.display = 'none' }} />
                       ) : (
                         <div className="w-14 h-14 rounded-lg flex-shrink-0 bg-gray-100 flex items-center justify-center text-2xl border border-gray-200">📦</div>

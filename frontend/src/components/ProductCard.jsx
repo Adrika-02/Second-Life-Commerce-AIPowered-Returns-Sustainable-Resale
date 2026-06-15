@@ -1,3 +1,5 @@
+import { mediaUrl } from '../utils/api'
+
 const conditionColors = {
   excellent: 'bg-green-100 text-green-700',
   good: 'bg-blue-100 text-blue-700',
@@ -16,7 +18,7 @@ export default function ProductCard({ product }) {
       <div className="h-48 bg-gradient-to-br from-green-50 to-emerald-100 flex items-center justify-center">
         {product.image_url ? (
           <img
-            src={product.image_url}
+            src={mediaUrl(product.image_url)}
             alt={product.title}
             className="h-full w-full object-cover"
           />
