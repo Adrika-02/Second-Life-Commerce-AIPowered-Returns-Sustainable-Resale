@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import axios from 'axios'
+import axios from '../utils/api'
 
 const BADGE = {
   fix:           { cls: 'bg-blue-100 text-blue-700',   label: '💡 Quick fix' },

@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import axios from 'axios'
+import axios from '../utils/api'
 
 const LANGUAGES = [
   { code: 'hinglish', label: 'Hinglish', flag: '🇮🇳', placeholder: 'ReturnBot se kuch bhi pucho…' },

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import axios from 'axios'
+import axios from '../utils/api'
 
 const GRADE_BADGE = {
   A:    'bg-green-100 text-amz-green',

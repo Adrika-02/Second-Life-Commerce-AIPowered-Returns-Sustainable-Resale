@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import axios from 'axios'
+import axios, { BASE } from '../utils/api'
 
 const STATUS_FLOW = [
   'pending', 'confirmed', 'agent_assigned', 'agent_en_route',
@@ -520,7 +520,7 @@ export default function Orders() {
     if (resetting) return
     setResetting(true)
     try {
-      await fetch('/api/v1/orders/demo-reset', { method: 'POST' })
+      await fetch(BASE + '/api/v1/orders/demo-reset', { method: 'POST' })
     } finally {
       window.location.reload()
     }

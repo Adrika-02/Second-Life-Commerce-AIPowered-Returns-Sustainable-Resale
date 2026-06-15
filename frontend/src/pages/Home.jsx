@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import axios from 'axios'
+import axios from '../utils/api'
 import { getProductImage } from '../utils/productImages'
 
 const CATEGORIES = [
