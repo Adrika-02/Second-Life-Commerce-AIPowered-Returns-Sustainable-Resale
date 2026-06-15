@@ -22,6 +22,13 @@ try:
 except Exception:
     pass  # column already exists
 
+# Migrate: add buy_type column to orders table
+try:
+    with engine.begin() as _conn:
+        _conn.execute(_sql_text("ALTER TABLE orders ADD COLUMN buy_type TEXT"))
+except Exception:
+    pass  # column already exists
+
 # Populate extra images for seeded demo listings so the marketplace carousel works
 _DEMO_EXTRA_IMAGES = {
     "Sony WH-1000XM4 Headphones": json.dumps([

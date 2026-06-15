@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import axios, { BASE } from '../utils/api'
 
 const STATUS_FLOW = [
@@ -331,8 +331,8 @@ function OrderCard({ order, onUpdate }) {
         <div className="flex items-center gap-2 flex-wrap">
           <span className="text-sm">{cfg.icon}</span>
           <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${cfg.pill}`}>{cfg.label}</span>
-          <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${isSeller ? 'bg-blue-50 text-blue-600' : 'bg-purple-50 text-purple-600'}`}>
-            {isSeller ? '📤 My Sale' : '📥 My Purchase'}
+          <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${isSeller ? 'bg-blue-50 text-blue-600' : order.buy_type === 'swap' ? 'bg-teal-50 text-teal-700' : 'bg-purple-50 text-purple-600'}`}>
+            {isSeller ? '📤 My Sale' : order.buy_type === 'swap' ? '🔄 Swap Request' : '📥 My Purchase'}
           </span>
           {showDecisionBanner && (
             <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-100 text-red-700 border border-red-200 animate-pulse">
@@ -475,9 +475,10 @@ function OrderCard({ order, onUpdate }) {
 }
 
 export default function Orders() {
+  const [searchParams] = useSearchParams()
   const [orders, setOrders]   = useState([])
   const [loading, setLoading] = useState(true)
-  const [tab, setTab]         = useState('seller')
+  const [tab, setTab]         = useState(searchParams.get('tab') === 'buyer' ? 'buyer' : 'seller')
 
   useEffect(() => {
     axios.get('/api/v1/orders/')
@@ -543,7 +544,7 @@ export default function Orders() {
           <p className="text-sm text-gray-500 mt-0.5">Real-time tracking for your sales and purchases</p>
         </div>
         <div className="flex flex-col items-end gap-1.5">
-          <Link to="/returns" className="text-xs font-semibold text-amz-teal hover:underline">
+          <Link to="/list" className="text-xs font-semibold text-amz-teal hover:underline">
             + List an item
           </Link>
           <button

@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo, useCallback, useRef } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import axios from '../utils/api'
 import { useCart } from '../context/CartContext'
 import { useWishlist } from '../context/WishlistContext'
@@ -882,6 +882,201 @@ function FilterPanel({ category, setCategory, grade, setGrade, priceIdx, setPric
   )
 }
 
+// ── Amazon URL Buy Modal ──────────────────────────────────────────────────────
+const CATEGORY_IMAGES = {
+  Electronics: 'https://images.unsplash.com/photo-1498049794561-7780e7231661?w=400&h=400&fit=crop&q=80',
+  Apparel:     'https://images.unsplash.com/photo-1523381210434-271e8be1f52b?w=400&h=400&fit=crop&q=80',
+  Home:        'https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=400&h=400&fit=crop&q=80',
+  Sports:      'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=400&h=400&fit=crop&q=80',
+  Books:       'https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=400&h=400&fit=crop&q=80',
+  Other:       'https://images.unsplash.com/photo-1563013544-824ae1b704d3?w=400&h=400&fit=crop&q=80',
+}
+
+function AmazonBuyModal({ onClose }) {
+  const navigate = useNavigate()
+  const [url, setUrl]           = useState('')
+  const [fetching, setFetching] = useState(false)
+  const [product, setProduct]   = useState(null)
+  const [urlError, setUrlError] = useState('')
+  const [buyType, setBuyType]   = useState('buy')
+  const [submitting, setSubmitting] = useState(false)
+  const [done, setDone]         = useState(false)
+
+  useEffect(() => {
+    const onKey = e => { if (e.key === 'Escape') onClose() }
+    document.addEventListener('keydown', onKey)
+    document.body.style.overflow = 'hidden'
+    return () => { document.removeEventListener('keydown', onKey); document.body.style.overflow = '' }
+  }, [onClose])
+
+  const fetchProduct = async () => {
+    setUrlError('')
+    setProduct(null)
+    try { new URL(url.trim()) } catch { setUrlError('Please paste a valid URL'); return }
+    if (!url.includes('amazon.')) { setUrlError('Please paste an Amazon product URL (amazon.in or amazon.com)'); return }
+    setFetching(true)
+    try {
+      const { data } = await axios.get('/api/v1/returns/fetch-product', { params: { url: url.trim() } })
+      const cat = getProductCategory(data.name)
+      setProduct({
+        name: data.name || 'Amazon Product',
+        asin: data.asin,
+        market_price: data.market_price_inr || 3000,
+        resale_price: Math.round((data.market_price_inr || 3000) * 0.6),
+        image: CATEGORY_IMAGES[cat] || CATEGORY_IMAGES.Other,
+        category: cat,
+      })
+    } catch {
+      setUrlError('Could not fetch product details. Check the link and try again.')
+    } finally {
+      setFetching(false)
+    }
+  }
+
+  const submit = async () => {
+    if (!product) return
+    setSubmitting(true)
+    try {
+      await axios.post('/api/v1/orders/', {
+        product_name: product.name,
+        image_url: product.image,
+        grade: 'B',
+        original_price: product.resale_price,
+        user_role: 'buyer',
+        buy_type: buyType,
+      })
+      setDone(true)
+      setTimeout(() => { onClose(); navigate('/orders?tab=buyer') }, 1600)
+    } catch {
+      // silent — still navigate
+      setDone(true)
+      setTimeout(() => { onClose(); navigate('/orders?tab=buyer') }, 1600)
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const savings = product ? product.market_price - product.resale_price : 0
+  const savingsPct = product ? Math.round((savings / product.market_price) * 100) : 0
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4"
+      onClick={e => { if (e.target === e.currentTarget) onClose() }}
+    >
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+
+        {/* Header */}
+        <div className="bg-amz-dark px-5 py-4 flex items-center justify-between">
+          <div>
+            <h2 className="text-base font-bold text-white">Buy from Amazon URL</h2>
+            <p className="text-xs text-gray-400 mt-0.5">Paste any Amazon product link — get it as a pre-owned item</p>
+          </div>
+          <button onClick={onClose} className="text-gray-400 hover:text-white transition-colors text-xl leading-none w-7 h-7 flex items-center justify-center">✕</button>
+        </div>
+
+        <div className="p-5 space-y-4">
+
+          {/* URL input */}
+          <div>
+            <label className="text-xs font-bold text-gray-700 block mb-1.5">Amazon Product URL</label>
+            <div className="flex gap-2">
+              <input
+                type="url"
+                value={url}
+                onChange={e => { setUrl(e.target.value); setUrlError(''); setProduct(null) }}
+                onKeyDown={e => { if (e.key === 'Enter') fetchProduct() }}
+                placeholder="https://www.amazon.in/dp/B08N5WRWNW"
+                className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-amz-orange min-w-0"
+              />
+              <button
+                onClick={fetchProduct}
+                disabled={!url.trim() || fetching}
+                className="px-4 py-2 bg-amz-orange text-white text-sm font-bold rounded-lg hover:bg-[#FF8F00] disabled:opacity-50 transition-colors flex-shrink-0 flex items-center gap-1.5"
+              >
+                {fetching
+                  ? <><svg className="animate-spin h-3.5 w-3.5" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>Fetching…</>
+                  : '🔍 Fetch'
+                }
+              </button>
+            </div>
+            {urlError && <p className="text-xs text-red-500 mt-1">{urlError}</p>}
+          </div>
+
+          {/* Product card */}
+          {product && !done && (
+            <div className="border border-amz-border rounded-xl overflow-hidden">
+              <div className="flex gap-3 p-3 bg-gray-50">
+                <img src={product.image} alt="" className="w-16 h-16 object-cover rounded-lg border border-gray-200 flex-shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-gray-900 leading-snug line-clamp-2">{product.name}</p>
+                  <div className="flex items-center gap-1.5 mt-1">
+                    <span className="text-amz-red text-xs font-bold">-{savingsPct}%</span>
+                    <span className="text-base font-black text-amz-text">₹{product.resale_price.toLocaleString('en-IN')}</span>
+                    <span className="text-xs text-gray-400 line-through">₹{product.market_price.toLocaleString('en-IN')}</span>
+                  </div>
+                  <p className="text-[10px] text-green-600 mt-0.5">Save ₹{savings.toLocaleString('en-IN')} vs new</p>
+                </div>
+              </div>
+
+              {/* Buy type selector */}
+              <div className="p-3 border-t border-amz-border">
+                <p className="text-xs font-bold text-gray-700 mb-2">How would you like to proceed?</p>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    onClick={() => setBuyType('buy')}
+                    className={`border-2 rounded-xl p-3 text-left transition-all ${buyType === 'buy' ? 'border-amz-orange bg-amber-50' : 'border-gray-200 hover:border-gray-300'}`}
+                  >
+                    <p className="text-sm font-bold">📥 Buy Used</p>
+                    <p className="text-[11px] text-gray-500 mt-0.5">Get this as a pre-owned item at {savingsPct}% off</p>
+                  </button>
+                  <button
+                    onClick={() => setBuyType('swap')}
+                    className={`border-2 rounded-xl p-3 text-left transition-all ${buyType === 'swap' ? 'border-teal-500 bg-teal-50' : 'border-gray-200 hover:border-gray-300'}`}
+                  >
+                    <p className="text-sm font-bold">🔄 Propose Swap</p>
+                    <p className="text-[11px] text-gray-500 mt-0.5">Exchange something you own for this item</p>
+                  </button>
+                </div>
+
+                {buyType === 'swap' && (
+                  <div className="mt-2 bg-teal-50 border border-teal-200 rounded-lg px-3 py-2 text-xs text-teal-700">
+                    You'll be asked to list an item of similar value. Our team will review the swap and match you with a seller.
+                  </div>
+                )}
+              </div>
+
+              <div className="px-3 pb-3">
+                <button
+                  onClick={submit}
+                  disabled={submitting}
+                  className="w-full py-2.5 bg-amz-yellow text-amz-text font-bold text-sm rounded-full border border-[#FFA41C] hover:bg-amz-yellow-hover disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
+                >
+                  {submitting
+                    ? <><svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>Placing…</>
+                    : buyType === 'swap' ? '🔄 Submit Swap Request' : '📥 Confirm Purchase'
+                  }
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Success */}
+          {done && (
+            <div className="text-center py-4">
+              <div className="text-4xl mb-3">{buyType === 'swap' ? '🔄' : '🎉'}</div>
+              <p className="font-bold text-gray-900">
+                {buyType === 'swap' ? 'Swap Request Submitted!' : 'Order Placed!'}
+              </p>
+              <p className="text-xs text-gray-500 mt-1">Redirecting to your orders…</p>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function Marketplace() {
   const [searchParams] = useSearchParams()
   const [allListings, setAllListings]   = useState([])
@@ -893,6 +1088,7 @@ export default function Marketplace() {
   const [prime, setPrime]               = useState(false)
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false)
   const [lastReturn, setLastReturn]     = useState(null)
+  const [showAmazonBuy, setShowAmazonBuy] = useState(false)
 
   useEffect(() => {
     setCategory(searchParams.get('category') || '')
@@ -955,6 +1151,8 @@ export default function Marketplace() {
   return (
     <div className="space-y-3 sm:space-y-4 pb-16">
 
+      {showAmazonBuy && <AmazonBuyModal onClose={() => setShowAmazonBuy(false)} />}
+
       {/* Breadcrumb */}
       <nav className="text-xs text-gray-500 flex items-center gap-1">
         <Link to="/" className="text-amz-teal hover:underline">Home</Link>
@@ -988,7 +1186,19 @@ export default function Marketplace() {
                   <><span className="text-amz-red font-medium">1–{listings.length}</span> of {listings.length} results</>
                 )}
               </p>
+              <button
+                onClick={() => setShowAmazonBuy(true)}
+                className="hidden sm:flex items-center gap-1.5 text-xs font-bold text-amz-teal border border-amz-border rounded-full px-3 py-1.5 hover:border-amz-orange hover:text-amz-orange transition-colors flex-shrink-0"
+              >
+                🔗 Buy from Amazon URL
+              </button>
               <div className="flex items-center gap-2 flex-shrink-0">
+                <button
+                  onClick={() => setShowAmazonBuy(true)}
+                  className="md:hidden flex items-center gap-1 text-xs font-bold text-amz-teal border border-amz-border rounded-full px-2.5 py-1.5 hover:border-amz-orange transition-colors"
+                >
+                  🔗 Amazon URL
+                </button>
                 <button
                   onClick={() => setMobileFiltersOpen(o => !o)}
                   className="md:hidden flex items-center gap-1.5 border border-amz-border rounded px-2.5 py-1.5 text-xs font-medium text-amz-text hover:border-amz-orange transition-colors"

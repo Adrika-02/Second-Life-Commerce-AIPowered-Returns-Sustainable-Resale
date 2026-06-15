@@ -12,6 +12,7 @@ import Orders from './pages/Orders'
 import Wishlist from './pages/Wishlist'
 import ReturnRiskChecker from './components/ReturnRiskChecker'
 import ChatBot from './components/ChatBot'
+import QuickList from './pages/QuickList'
 
 export default function App() {
   return (
@@ -29,6 +30,7 @@ export default function App() {
                 <Route path="/orders" element={<Orders />} />
                 <Route path="/wishlist" element={<Wishlist />} />
                 <Route path="/risk-check" element={<ReturnRiskChecker />} />
+                <Route path="/list" element={<QuickList />} />
               </Routes>
             </ErrorBoundary>
           </main>

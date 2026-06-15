@@ -159,6 +159,7 @@ class CreateOrderRequest(BaseModel):
     original_price: int
     user_role: str = "seller"
     pickup_address: Optional[dict] = None
+    buy_type: Optional[str] = None  # "buy" | "swap"
 
 
 class AgentAnalysisUpdate(BaseModel):
@@ -199,6 +200,7 @@ class OrderOut(BaseModel):
     agent_photo_url: Optional[str]
     agent_analysis: Optional[dict]
     seller_decision: Optional[str]
+    buy_type: Optional[str]
     status: str
     status_label: str
     status_index: int
@@ -235,6 +237,7 @@ def _to_out(o: Order) -> OrderOut:
         agent_photo_url=o.agent_photo_url,
         agent_analysis=analysis,
         seller_decision=o.seller_decision,
+        buy_type=o.buy_type,
         status=o.status,
         status_label=STATUS_LABELS.get(o.status, o.status),
         status_index=si,
@@ -258,6 +261,7 @@ def create_order(req: CreateOrderRequest, db: Session = Depends(get_db)):
         original_price=req.original_price,
         user_role=req.user_role,
         pickup_address_json=json.dumps(req.pickup_address) if req.pickup_address else None,
+        buy_type=req.buy_type,
         events_json=json.dumps(events),
     )
     db.add(o)

@@ -20,6 +20,78 @@ from utils.config import settings
 router = APIRouter()
 
 
+_JUNK_TITLES = {
+    "amazon.in", "amazon.com", "amazon.co.uk", "amazon.de", "amazon.fr",
+    "amazon", "robot check", "sorry! something went wrong!", "page not found",
+    "403 forbidden", "just a moment", "captcha",
+}
+
+_DESKTOP_HEADERS = {
+    "User-Agent": (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) "
+        "Chrome/125.0.0.0 Safari/537.36"
+    ),
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
+    "Accept-Language": "en-IN,en-GB;q=0.9,en-US;q=0.8,en;q=0.7",
+    "Accept-Encoding": "gzip, deflate, br",
+    "DNT": "1",
+    "Connection": "keep-alive",
+    "Upgrade-Insecure-Requests": "1",
+    "Sec-Fetch-Dest": "document",
+    "Sec-Fetch-Mode": "navigate",
+    "Sec-Fetch-Site": "none",
+    "Sec-Fetch-User": "?1",
+    "Cache-Control": "max-age=0",
+    "sec-ch-ua": '"Google Chrome";v="125", "Chromium";v="125", "Not.A/Brand";v="24"',
+    "sec-ch-ua-mobile": "?0",
+    "sec-ch-ua-platform": '"Windows"',
+}
+
+_MOBILE_HEADERS = {
+    "User-Agent": (
+        "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) "
+        "AppleWebKit/605.1.15 (KHTML, like Gecko) "
+        "Version/17.0 Mobile/15E148 Safari/604.1"
+    ),
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    "Accept-Language": "en-IN,en;q=0.9",
+    "Accept-Encoding": "gzip, deflate",
+}
+
+
+def _slug_to_name(slug: str) -> str:
+    return " ".join(
+        w.upper() if re.match(r'^[A-Z0-9]{2,6}$', w.upper()) and not w.istitle() else w.capitalize()
+        for w in slug.replace("-", " ").strip().split()
+    )
+
+
+def _extract_amazon_title(html: str) -> str:
+    """Pull the product title out of an Amazon HTML response."""
+    m = re.search(r'id="productTitle"[^>]*>\s*(.*?)\s*</span>', html, re.DOTALL)
+    if m:
+        name = re.sub(r'\s+', ' ', m.group(1)).strip()
+        if name and name.lower() not in _JUNK_TITLES:
+            return name
+
+    m = re.search(r'property="og:title"\s+content="([^"]+)"', html)
+    if m:
+        name = m.group(1).strip()
+        if name and name.lower() not in _JUNK_TITLES:
+            return name
+
+    m = re.search(r"<title[^>]*>(.*?)</title>", html, re.DOTALL | re.IGNORECASE)
+    if m:
+        raw = m.group(1).strip()
+        raw = re.sub(r'\s*[:|]\s*Amazon\.in.*$', '', raw, flags=re.IGNORECASE).strip()
+        raw = re.sub(r'^Amazon\.in\s*[:|]\s*', '', raw, flags=re.IGNORECASE).strip()
+        raw = re.sub(r'\s*[:|]\s*Amazon\.com.*$', '', raw, flags=re.IGNORECASE).strip()
+        if raw and raw.lower() not in _JUNK_TITLES:
+            return raw
+    return ""
+
+
 @router.get("/fetch-product")
 async def fetch_product_from_url(url: str):
     if "amazon." not in url:
@@ -28,61 +100,54 @@ async def fetch_product_from_url(url: str):
     asin_match = re.search(r"/dp/([A-Z0-9]{10})", url)
     asin = asin_match.group(1) if asin_match else None
 
-    # Try to get name from the URL slug first (fast path)
-    slug_match = re.search(r"/([A-Za-z0-9][A-Za-z0-9\-]+)/dp/", url)
-    slug_name = ""
-    if slug_match:
-        slug_name = (
-            slug_match.group(1)
-            .replace("-", " ")
-            .strip()
-        )
-        # Title-case but preserve known uppercase tokens (like XM4, WH)
-        slug_name = " ".join(
-            w.upper() if re.match(r'^[A-Z0-9]{2,6}$', w.upper()) and not w.istitle() else w.capitalize()
-            for w in slug_name.split()
-        )
+    # Extract slug from original URL (fast path — works without any HTTP call)
+    slug_match = re.search(r"/([A-Za-z0-9][A-Za-z0-9\-]{4,})/dp/", url)
+    slug_name = _slug_to_name(slug_match.group(1)) if slug_match else ""
 
-    # Fetch the actual page to get the real product title
-    headers = {
-        "User-Agent": (
-            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
-            "AppleWebKit/537.36 (KHTML, like Gecko) "
-            "Chrome/124.0.0.0 Safari/537.36"
-        ),
-        "Accept-Language": "en-IN,en;q=0.9",
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-    }
+    product_name = slug_name
 
-    product_name = slug_name  # default to slug if fetch fails
+    # Strategy 1: Desktop browser simulation with session warmup
     try:
-        async with httpx.AsyncClient(follow_redirects=True, timeout=8) as client:
-            r = await client.get(url, headers=headers)
-        html = r.text
+        async with httpx.AsyncClient(follow_redirects=True, timeout=10) as client:
+            # Warm up: visit homepage to pick up session cookies
+            try:
+                await client.get("https://www.amazon.in/", headers=_DESKTOP_HEADERS, timeout=4)
+            except Exception:
+                pass
 
-        # Try <span id="productTitle"> first (most reliable)
-        m = re.search(r'id="productTitle"[^>]*>\s*(.*?)\s*</span>', html, re.DOTALL)
-        if m:
-            product_name = re.sub(r'\s+', ' ', m.group(1)).strip()
-        else:
-            # Fall back to og:title meta
-            m = re.search(r'property="og:title"\s+content="([^"]+)"', html)
-            if m:
-                product_name = m.group(1).strip()
-            else:
-                # Fall back to <title> tag
-                m = re.search(r"<title[^>]*>(.*?)</title>", html, re.DOTALL | re.IGNORECASE)
-                if m:
-                    raw = m.group(1).strip()
-                    # Strip "Amazon.in : " or ": Amazon.in" suffixes
-                    raw = re.sub(r'\s*[:|]\s*Amazon\.in.*$', '', raw, flags=re.IGNORECASE).strip()
-                    raw = re.sub(r'^Amazon\.in\s*[:|]\s*', '', raw, flags=re.IGNORECASE).strip()
-                    if raw:
-                        product_name = raw
+            r = await client.get(url, headers=_DESKTOP_HEADERS)
+
+            # Key trick: Amazon redirects amazon.in/dp/ASIN → amazon.in/Product-Name/dp/ASIN
+            # so if the original URL had no slug, the redirect URL often reveals the product name
+            final_url = str(r.url)
+            if not slug_name:
+                final_slug_m = re.search(r"/([A-Za-z0-9][A-Za-z0-9\-]{4,})/dp/", final_url)
+                if final_slug_m:
+                    slug_name = _slug_to_name(final_slug_m.group(1))
+
+            title = _extract_amazon_title(r.text)
+            if title:
+                product_name = title
     except Exception:
-        pass  # use slug_name fallback
+        pass
 
-    # Decode common HTML entities
+    # Strategy 2: Mobile URL fallback (Amazon's mobile site is less aggressive)
+    if (not product_name or product_name.lower().strip() in _JUNK_TITLES) and asin:
+        try:
+            async with httpx.AsyncClient(follow_redirects=True, timeout=8) as client:
+                r = await client.get(f"https://m.amazon.in/dp/{asin}", headers=_MOBILE_HEADERS)
+                # Also check redirect URL for slug
+                if not slug_name:
+                    final_slug_m = re.search(r"/([A-Za-z0-9][A-Za-z0-9\-]{4,})/dp/", str(r.url))
+                    if final_slug_m:
+                        slug_name = _slug_to_name(final_slug_m.group(1))
+                title = _extract_amazon_title(r.text)
+                if title:
+                    product_name = title
+        except Exception:
+            pass
+
+    # Decode HTML entities
     product_name = (
         product_name
         .replace("&amp;", "&")
@@ -92,18 +157,22 @@ async def fetch_product_from_url(url: str):
         .strip()
     )
 
-    # Estimate market price from product name using price bands
+    # Reject junk names — fall back to slug (which may now come from the redirect URL)
+    if product_name.lower().rstrip("/").strip() in _JUNK_TITLES:
+        product_name = slug_name
+
     name_lower = (product_name or slug_name or "").lower()
-    market_price = 3500  # default
+    market_price = 3500
     for keywords, price in _PRICE_BANDS:
         if any(k in name_lower for k in keywords):
             market_price = price
             break
 
+    clean_name = product_name or slug_name or ""
     return {
-        "name": product_name or "Amazon Product",
+        "name": clean_name,
         "asin": asin,
-        "fetched": bool(product_name and product_name != slug_name),
+        "fetched": bool(clean_name),
         "market_price_inr": market_price,
     }
 

@@ -145,10 +145,16 @@ export default function Returns() {
     try {
       const res = await axios.get('/api/v1/returns/fetch-product', { params: { url: productUrl.trim() } })
       const data = res.data
-      setUrlProduct(data)
-      setNameInput(data.name)
-      setProductName(data.name)
-      setUploadTitle(data.name)
+      const JUNK = ['amazon.in', 'amazon.com', 'amazon.co.uk', 'amazon.de', 'amazon.fr', 'amazon', 'robot check', 'just a moment', 'page not found']
+      const nameIsJunk = !data.name || JUNK.includes(data.name.toLowerCase().trim())
+      // Mark fetched false if name is junk so the card shows amber warning
+      const cleaned = { ...data, fetched: data.fetched && !nameIsJunk, name: nameIsJunk ? '' : data.name }
+      setUrlProduct(cleaned)
+      if (cleaned.fetched && cleaned.name) {
+        setNameInput(cleaned.name)
+        setProductName(cleaned.name)
+        setUploadTitle(cleaned.name)
+      }
     } catch {
       setUrlError('Could not fetch product details. Please check the link and try again.')
     } finally {
@@ -496,11 +502,15 @@ export default function Returns() {
         )}
 
         {urlProduct && (
-          <div className="mt-3 bg-green-50 border border-green-200 rounded-xl p-3">
+          <div className={`mt-3 border rounded-xl p-3 ${urlProduct.fetched && urlProduct.name ? 'bg-green-50 border-green-200' : 'bg-amber-50 border-amber-200'}`}>
             <div className="flex items-start gap-3">
-              <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0 text-base">✅</div>
+              <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 text-base ${urlProduct.fetched && urlProduct.name ? 'bg-green-100' : 'bg-amber-100'}`}>
+                {urlProduct.fetched && urlProduct.name ? '✅' : '⚠️'}
+              </div>
               <div className="flex-1 min-w-0">
-                <p className="text-[11px] font-bold text-green-700 uppercase tracking-wide mb-1">Product details loaded</p>
+                <p className={`text-[11px] font-bold uppercase tracking-wide mb-1 ${urlProduct.fetched && urlProduct.name ? 'text-green-700' : 'text-amber-700'}`}>
+                  {urlProduct.fetched && urlProduct.name ? 'Product details loaded' : 'Link fetched — enter product name below'}
+                </p>
                 <input
                   type="text"
                   value={nameInput}
@@ -509,16 +519,19 @@ export default function Returns() {
                     setProductName(e.target.value)
                     setUploadTitle(e.target.value)
                   }}
-                  className="w-full bg-white border border-green-300 rounded-lg px-3 py-2 text-sm font-semibold text-gray-900 focus:outline-none focus:ring-2 focus:ring-green-400"
-                  placeholder="Product name"
+                  className={`w-full bg-white rounded-lg px-3 py-2 text-sm font-semibold text-gray-900 focus:outline-none focus:ring-2 border ${urlProduct.fetched && urlProduct.name ? 'border-green-300 focus:ring-green-400' : 'border-amber-300 focus:ring-amber-400'}`}
+                  placeholder="Type the product name…"
+                  autoFocus={!urlProduct.name}
                 />
                 {urlProduct.asin && (
                   <p className="text-[11px] text-gray-500 mt-1.5 font-mono bg-white border border-gray-200 inline-block px-2 py-0.5 rounded">
                     ASIN: {urlProduct.asin}
                   </p>
                 )}
-                <p className="text-[11px] text-green-600 mt-1.5">
-                  Edit the name above if needed, then select a return reason and upload your photo
+                <p className={`text-[11px] mt-1.5 ${urlProduct.fetched && urlProduct.name ? 'text-green-600' : 'text-amber-600'}`}>
+                  {urlProduct.fetched && urlProduct.name
+                    ? 'Edit the name above if needed, then select a return reason and upload your photo'
+                    : 'Amazon blocked the fetch — type the product name above, then continue'}
                 </p>
               </div>
               <button

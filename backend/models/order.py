@@ -31,6 +31,7 @@ class Order(Base):
     agent_analysis_json = Column(Text, nullable=True)   # JSON {grade,notes,price_change,price}
 
     seller_decision = Column(String, nullable=True)     # "accepted" | "declined" | null
+    buy_type = Column(String, nullable=True)             # "buy" | "swap" — for buyer orders
 
     status = Column(String, default="pending")
     events_json = Column(Text, default="[]")            # JSON [{status,label,note,ts}]
