@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import axios, { BASE } from '../utils/api'
+import axios, { BASE, mediaUrl } from '../utils/api'
 
 const STATUS_FLOW = [
   'pending', 'confirmed', 'agent_assigned', 'agent_en_route',
@@ -110,7 +110,7 @@ function SellerDecisionBanner({ order, onDecision }) {
         {/* Agent photo + notes */}
         <div className="flex gap-3 bg-white rounded-lg p-2.5 border border-red-100">
           {order.agent_photo_url && (
-            <img src={order.agent_photo_url} alt=""
+            <img src={mediaUrl(order.agent_photo_url)} alt=""
               className="w-16 h-16 object-cover rounded-lg border border-red-200 flex-shrink-0" />
           )}
           <div className="flex-1 min-w-0">
@@ -168,7 +168,7 @@ function AgentAnalysisPanel({ order, isSeller }) {
       <div className="p-3 flex gap-3">
         {order.agent_photo_url && (
           <div className="flex-shrink-0">
-            <img src={order.agent_photo_url} alt="Agent inspection photo"
+            <img src={mediaUrl(order.agent_photo_url)} alt="Agent inspection photo"
               className="w-20 h-20 object-cover rounded-lg border border-violet-200" />
             <p className="text-[9px] text-gray-400 text-center mt-0.5">Agent photo</p>
           </div>
@@ -347,7 +347,7 @@ function OrderCard({ order, onUpdate }) {
         {/* Product row */}
         <div className="flex items-start gap-3">
           {order.image_url ? (
-            <img src={order.image_url} alt=""
+            <img src={mediaUrl(order.image_url)} alt=""
               className="w-16 h-16 object-cover rounded-xl border border-gray-200 flex-shrink-0 shadow-sm" />
           ) : (
             <div className="w-16 h-16 rounded-xl bg-gray-100 flex items-center justify-center text-2xl flex-shrink-0 border border-gray-200">📦</div>

@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo, useCallback, useRef } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
-import axios from '../utils/api'
+import axios, { mediaUrl } from '../utils/api'
 import { useCart } from '../context/CartContext'
 import { useWishlist } from '../context/WishlistContext'
 import { getProductImage, getProductCategory } from '../utils/productImages'
@@ -66,7 +66,7 @@ function PhotoCarousel({ listing }) {
   const allPhotos = [
     listing.image_url || fallback,
     ...(listing.extra_images || []),
-  ].filter(Boolean)
+  ].filter(Boolean).map(mediaUrl)
 
   const [idx, setIdx] = useState(0)
   const [err, setErr]  = useState(false)
@@ -156,7 +156,7 @@ function RecoCard({ listing }) {
   const { addItem } = useCart()
   const [addedState, setAddedState] = useState('idle')
   const [imgErr, setImgErr]         = useState(false)
-  const imgUrl = listing.image_url || getProductImage(listing.product_name)
+  const imgUrl = mediaUrl(listing.image_url) || getProductImage(listing.product_name)
   const badge  = GRADE_BADGE[listing.grade] ?? GRADE_BADGE['C']
 
   return (
@@ -217,7 +217,7 @@ function ListingDetailModal({ listing, onClose }) {
   const scrollRef = useRef(null)
 
   const fallback  = getProductImage(listing.product_name)
-  const allPhotos = [listing.image_url || fallback, ...(listing.extra_images || [])].filter(Boolean)
+  const allPhotos = [listing.image_url || fallback, ...(listing.extra_images || [])].filter(Boolean).map(mediaUrl)
 
   const badge      = GRADE_BADGE[listing.grade] ?? GRADE_BADGE['C']
   const cat        = getProductCategory(listing.product_name)
