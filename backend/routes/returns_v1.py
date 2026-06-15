@@ -147,6 +147,65 @@ async def fetch_product_from_url(url: str):
         except Exception:
             pass
 
+    # Strategy 3: Googlebot user-agent — Amazon allows Googlebot for SEO indexing
+    if (not product_name or product_name.lower().strip() in _JUNK_TITLES) and asin:
+        try:
+            bot_headers = {
+                "User-Agent": "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)",
+                "Accept": "text/html",
+                "Accept-Language": "en-IN,en;q=0.9",
+            }
+            async with httpx.AsyncClient(follow_redirects=True, timeout=8) as client:
+                r = await client.get(f"https://www.amazon.in/dp/{asin}", headers=bot_headers)
+                if not slug_name:
+                    final_slug_m = re.search(r"/([A-Za-z0-9][A-Za-z0-9\-]{4,})/dp/", str(r.url))
+                    if final_slug_m:
+                        slug_name = _slug_to_name(final_slug_m.group(1))
+                title = _extract_amazon_title(r.text)
+                if title:
+                    product_name = title
+        except Exception:
+            pass
+
+    # Strategy 4: Amazon search page — search results are less strictly bot-blocked
+    if (not product_name or product_name.lower().strip() in _JUNK_TITLES) and asin:
+        try:
+            async with httpx.AsyncClient(follow_redirects=True, timeout=8) as client:
+                r = await client.get(
+                    f"https://www.amazon.in/s?k={asin}",
+                    headers=_DESKTOP_HEADERS,
+                )
+                html = r.text
+                # Product title appears in search result h2 > a > span
+                m = re.search(
+                    r'<span[^>]*class="[^"]*a-text-normal[^"]*"[^>]*>\s*(.*?)\s*</span>',
+                    html, re.DOTALL,
+                )
+                if m:
+                    name = re.sub(r'\s+', ' ', m.group(1)).strip()
+                    if name and name.lower() not in _JUNK_TITLES and len(name) > 8:
+                        product_name = name
+        except Exception:
+            pass
+
+    # Strategy 5: Try amazon.com (Render servers are in the US — less likely to be blocked)
+    if (not product_name or product_name.lower().strip() in _JUNK_TITLES) and asin:
+        try:
+            async with httpx.AsyncClient(follow_redirects=True, timeout=8) as client:
+                r = await client.get(
+                    f"https://www.amazon.com/dp/{asin}",
+                    headers={**_DESKTOP_HEADERS, "Accept-Language": "en-US,en;q=0.9"},
+                )
+                if not slug_name:
+                    final_slug_m = re.search(r"/([A-Za-z0-9][A-Za-z0-9\-]{4,})/dp/", str(r.url))
+                    if final_slug_m:
+                        slug_name = _slug_to_name(final_slug_m.group(1))
+                title = _extract_amazon_title(r.text)
+                if title:
+                    product_name = title
+        except Exception:
+            pass
+
     # Decode HTML entities
     product_name = (
         product_name
