@@ -10,7 +10,7 @@ export const BASE = import.meta.env.DEV
 // Absolute URLs (S3, Unsplash, etc.) are returned unchanged.
 export const mediaUrl = (path) => {
   if (!path) return path
-  if (path.startsWith('http')) return path
+  if (path.startsWith('http') || path.startsWith('data:')) return path
   return `${BASE}${path}`
 }
 

@@ -1,6 +1,13 @@
 import { useCallback, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import axios, { BASE } from '../utils/api'
+import axios from '../utils/api'
+
+const toBase64 = (file) => new Promise((resolve, reject) => {
+  const reader = new FileReader()
+  reader.onload = () => resolve(reader.result)  // data:image/jpeg;base64,...
+  reader.onerror = reject
+  reader.readAsDataURL(file)
+})
 
 const GRADE_OPTIONS = [
   { value: 'A', label: 'Like New',  sub: 'No visible wear, all parts present', active: 'border-green-400 bg-green-50 text-green-800' },
@@ -53,13 +60,11 @@ export default function QuickList() {
     setLoading(true)
     setError(null)
     try {
+      // Convert photo to base64 data URL — stored directly in DB so it
+      // never disappears when Render redeploys (no S3/filesystem dependency)
       let imageUrl = null
       if (photoFile) {
-        const fd = new FormData()
-        fd.append('files', photoFile)
-        const up = await fetch(BASE + '/api/uploads/media/batch', { method: 'POST', body: fd })
-        const upData = await up.json()
-        imageUrl = upData.urls?.[0] || null
+        imageUrl = await toBase64(photoFile)
       }
 
       const priceInt = parseInt(price) || 500
