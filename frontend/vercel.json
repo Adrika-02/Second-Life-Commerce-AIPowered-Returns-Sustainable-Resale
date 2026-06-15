@@ -5,11 +5,11 @@
   "rewrites": [
     {
       "source": "/api/:path*",
-      "destination": "https://second-life-backend.onrender.com/api/:path*"
+      "destination": "https://second-life-commerce-backend-ffpa.onrender.com/api/:path*"
     },
     {
       "source": "/static/:path*",
-      "destination": "https://second-life-backend.onrender.com/static/:path*"
+      "destination": "https://second-life-commerce-backend-ffpa.onrender.com/static/:path*"
     },
     {
       "source": "/(.*)",
