@@ -269,3 +269,12 @@ def mark_listing_sold(listing_id: int, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(row)
     return _to_response(row)
+
+
+@router.delete("/listings/{listing_id}", status_code=204)
+def delete_listing(listing_id: int, db: Session = Depends(get_db)):
+    row = db.query(Listing).filter(Listing.id == listing_id).first()
+    if not row:
+        raise HTTPException(status_code=404, detail="Listing not found")
+    db.delete(row)
+    db.commit()
