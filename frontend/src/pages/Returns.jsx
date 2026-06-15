@@ -116,6 +116,9 @@ export default function Returns() {
   // ── Extra image URLs (uploaded after grading) ─────────────────────────────
   const [extraImageUrls, setExtraImageUrls] = useState([])
 
+  // ── Primary photo as base64 — stored in DB so it survives Render redeploys ─
+  const [primaryPhotoBase64, setPrimaryPhotoBase64] = useState(null)
+
   // ── Listing form — highlights are now a dynamic array ─────────────────────
   const [listTitle, setListTitle]       = useState('')
   const [listDesc, setListDesc]         = useState('')
@@ -139,11 +142,13 @@ export default function Returns() {
 
   const fetchFromUrl = async () => {
     setUrlError('')
-    try { new URL(productUrl.trim()) } catch { setUrlError('Please paste a valid Amazon product link'); return }
-    if (!productUrl.includes('amazon.')) { setUrlError('Please paste a valid Amazon product link (amazon.in or amazon.com)'); return }
+    let normalizedUrl = productUrl.trim()
+    if (normalizedUrl && !normalizedUrl.startsWith('http')) normalizedUrl = 'https://' + normalizedUrl
+    try { new URL(normalizedUrl) } catch { setUrlError('Please paste a valid Amazon product link'); return }
+    if (!normalizedUrl.includes('amazon.')) { setUrlError('Please paste a valid Amazon product link (amazon.in or amazon.com)'); return }
     setUrlFetching(true)
     try {
-      const res = await axios.get('/api/v1/returns/fetch-product', { params: { url: productUrl.trim() } })
+      const res = await axios.get('/api/v1/returns/fetch-product', { params: { url: normalizedUrl } })
       const data = res.data
       const JUNK = ['amazon.in', 'amazon.com', 'amazon.co.uk', 'amazon.de', 'amazon.fr', 'amazon', 'robot check', 'just a moment', 'page not found']
       const nameIsJunk = !data.name || JUNK.includes(data.name.toLowerCase().trim())
@@ -167,7 +172,17 @@ export default function Returns() {
       f.type.startsWith('image/') || f.type.startsWith('video/')
     )
     if (!valid.length) return
-    setFiles(prev => [...prev, ...valid])
+    setFiles(prev => {
+      const combined = [...prev, ...valid]
+      // Convert the first image to base64 so it persists in the DB
+      const firstImage = combined.find(f => f.type.startsWith('image/'))
+      if (firstImage) {
+        const reader = new FileReader()
+        reader.onload = () => setPrimaryPhotoBase64(reader.result)
+        reader.readAsDataURL(firstImage)
+      }
+      return combined
+    })
     setPreviews(prev => [...prev, ...valid.map(f => URL.createObjectURL(f))])
     setResult(null)
     setError(null)
@@ -352,11 +367,13 @@ export default function Returns() {
     }
 
     try {
+      // Use base64 as primary image — persists in Neon DB across Render redeploys
+      const persistentImageUrl = primaryPhotoBase64 || result.image_url || null
       const { data: listing } = await axios.post('/api/v1/marketplace/listings', {
         return_id: result.id,
         product_name: result.product_name,
         grade: result.grade,
-        image_url: result.image_url ?? null,
+        image_url: persistentImageUrl,
         extra_image_urls: finalExtraUrls,
         estimated_resale_value_inr: result.estimated_resale_value_inr,
         damage_detected: result.damage_detected,
@@ -370,7 +387,7 @@ export default function Returns() {
       await axios.post('/api/v1/orders/', {
         listing_id: listing.id,
         product_name: result.product_name,
-        image_url: result.image_url ?? null,
+        image_url: persistentImageUrl,
         grade: result.grade,
         original_price: listing.suggested_price_inr,
         user_role: 'seller',
