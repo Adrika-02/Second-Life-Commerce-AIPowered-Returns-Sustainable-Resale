@@ -1165,7 +1165,7 @@ def seed_if_empty():
     Base.metadata.create_all(bind=engine)
     db = SessionLocal()
     try:
-        if db.query(ReturnGrade).count() == 0:
+        if db.query(Listing).count() == 0:
             listing_count = seed(db)
             _print_summary(listing_count)
         if db.query(Order).count() == 0:

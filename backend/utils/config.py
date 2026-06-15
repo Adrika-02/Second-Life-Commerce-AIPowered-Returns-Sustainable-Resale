@@ -8,6 +8,7 @@ class Settings(BaseSettings):
     s3_bucket_name: str = ""
     database_url: str = "sqlite:///./second_life.db"
     groq_api_key: str = ""
+    frontend_url: str = ""
 
     class Config:
         env_file = ".env"

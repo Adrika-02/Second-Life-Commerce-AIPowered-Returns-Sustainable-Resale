@@ -93,7 +93,13 @@ docker compose up --build
 | `AWS_SECRET_ACCESS_KEY`| AWS IAM secret key                 |
 | `AWS_REGION`           | AWS region (e.g. `us-east-1`)      |
 | `S3_BUCKET_NAME`       | S3 bucket for return item images   |
-| `DATABASE_URL`         | SQLAlchemy DB URL (SQLite default) |
+| `DATABASE_URL`         | SQLAlchemy DB URL for your deployed database |
+
+For deployment:
+
+- Set `DATABASE_URL` in Render for the backend service.
+- Set the frontend to call the deployed backend URL through the `frontend/vercel.json` rewrites.
+- Keep the local default in `backend/.env` only for development if you are not using Postgres locally.
 
 ---
 
