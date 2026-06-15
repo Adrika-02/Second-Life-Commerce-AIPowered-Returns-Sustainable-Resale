@@ -146,7 +146,7 @@ function AgentAnalysisPanel({ order, isSeller }) {
   const [buyerAccepted, setBuyerAccepted] = useState(false)
   if (!order.agent_analysis) return null
   const a = order.agent_analysis
-  const dispPrice = (a.price || order.original_price).toLocaleString('en-IN')
+  const dispPrice = (a.price || order.original_price || 0).toLocaleString('en-IN')
   const origPrice = order.original_price?.toLocaleString('en-IN')
 
   return (
@@ -294,7 +294,7 @@ function OrderCard({ order, onUpdate }) {
   const cfg = STATUS_CFG[order.status] ?? STATUS_CFG.pending
   const isDelivered = order.status === 'delivered'
   const isSeller = order.user_role === 'seller'
-  const finalPrice = (order.final_price || order.original_price).toLocaleString('en-IN')
+  const finalPrice = (order.final_price || order.original_price || 0).toLocaleString('en-IN')
   const priceChanged = order.final_price && order.final_price !== order.original_price
 
   // Show the big decision banner for seller when agent changed price and seller hasn't responded
@@ -382,7 +382,7 @@ function OrderCard({ order, onUpdate }) {
         <div className="mt-2 h-1.5 bg-gray-100 rounded-full overflow-hidden">
           <div
             className={`h-full rounded-full transition-all duration-500 ${isCancelled ? 'bg-red-300' : 'bg-gradient-to-r from-amz-orange to-amber-400'}`}
-            style={{ width: `${Math.round((order.status_index / (STATUS_FLOW.length - 1)) * 100)}%` }}
+            style={{ width: `${Math.round(((order.status_index ?? 0) / (STATUS_FLOW.length - 1)) * 100)}%` }}
           />
         </div>
 
@@ -444,11 +444,11 @@ function OrderCard({ order, onUpdate }) {
             className="text-xs text-amz-teal hover:text-[#005f6b] flex items-center gap-1 transition-colors"
           >
             {showTimeline ? '▲ Hide' : '▼ Show'} full delivery timeline
-            <span className="text-gray-400">({order.events.length} updates)</span>
+            <span className="text-gray-400">({(order.events || []).length} updates)</span>
           </button>
           {showTimeline && (
             <div className="mt-3 pl-1">
-              <Timeline events={order.events} statusIndex={order.status_index} isCancelled={isCancelled} />
+              <Timeline events={order.events || []} statusIndex={order.status_index ?? 0} isCancelled={isCancelled} />
             </div>
           )}
         </div>
